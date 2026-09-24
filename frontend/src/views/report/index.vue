@@ -63,11 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
+import { useListPage } from '@/api/listPage'
 
 const ENDPOINT = '/api/report'
 const columns = ["报表名称", "统计范围", "统计周期", "导出格式", "任务状态", "生成时间"]
@@ -75,56 +71,23 @@ const actions = ["生成报表", "重试任务", "下载报表"]
 const statuses = ["排队中", "生成中", "已完成", "已失败"]
 const stats = [{"label": "排队任务", "value": 0}, {"label": "生成中任务", "value": 0}, {"label": "失败任务", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  reload,
+  runAction,
+  resetFilters,
+  exportRows,
+  openCreate,
+} = useListPage(ENDPOINT, {
+  createHint: '报表任务登记入口尚未接入审批流',
+  actionFailed: '报表导出动作未生效，请稍后重试',
+  actionFallback: '报表导出操作失败',
+  loadFailed: '报表任务列表读取失败',
+  loadFallback: '报表导出列表读取失败',
+})
+
 const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '报表任务登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('报表导出动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '报表导出操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('报表任务列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '报表导出列表读取失败'
-  }
-}
-
-onMounted(reload)
 </script>

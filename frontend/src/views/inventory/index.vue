@@ -63,11 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
+import { useListPage } from '@/api/listPage'
 
 const ENDPOINT = '/api/inventory'
 const columns = ["库存编码", "货物名称", "批次号", "库位编号", "在库数量", "锁定量", "保质期至", "入库日期"]
@@ -75,56 +71,23 @@ const actions = ["冻结库存", "解冻库存", "盘点修正"]
 const statuses = ["正常", "临近保质期", "已冻结", "已清空"]
 const stats = [{"label": "在库批次", "value": 0}, {"label": "临期批次", "value": 0}, {"label": "冻结数量", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  reload,
+  runAction,
+  resetFilters,
+  exportRows,
+  openCreate,
+} = useListPage(ENDPOINT, {
+  createHint: '库存批次登记入口尚未接入审批流',
+  actionFailed: '库存管理动作未生效，请稍后重试',
+  actionFallback: '库存管理操作失败',
+  loadFailed: '库存批次列表读取失败',
+  loadFallback: '库存管理列表读取失败',
+})
+
 const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '库存批次登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('库存管理动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '库存管理操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('库存批次列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '库存管理列表读取失败'
-  }
-}
-
-onMounted(reload)
 </script>

@@ -63,11 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
+import { useListPage } from '@/api/listPage'
 
 const ENDPOINT = '/api/waybill'
 const columns = ["运单号", "关联订单", "承运车辆", "司机姓名", "装车时间", "卸货时间", "运单状态"]
@@ -75,56 +71,23 @@ const actions = ["确认装车", "签收运单", "作废运单"]
 const statuses = ["待装车", "运输中", "已签收", "已作废"]
 const stats = [{"label": "在途运单", "value": 0}, {"label": "待签收运单", "value": 0}, {"label": "异常运单", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  reload,
+  runAction,
+  resetFilters,
+  exportRows,
+  openCreate,
+} = useListPage(ENDPOINT, {
+  createHint: '冷链运单登记入口尚未接入审批流',
+  actionFailed: '运单管理动作未生效，请稍后重试',
+  actionFallback: '运单管理操作失败',
+  loadFailed: '冷链运单列表读取失败',
+  loadFallback: '运单管理列表读取失败',
+})
+
 const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '冷链运单登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('运单管理动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '运单管理操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('冷链运单列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '运单管理列表读取失败'
-  }
-}
-
-onMounted(reload)
 </script>

@@ -63,11 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
+import { useListPage } from '@/api/listPage'
 
 const ENDPOINT = '/api/excursion'
 const columns = ["事件编号", "关联运单", "异常类型", "超限时长", "最高温度", "发生时间", "处置人"]
@@ -75,56 +71,23 @@ const actions = ["受理事件", "提交处置", "忽略事件"]
 const statuses = ["待处置", "处置中", "已闭环", "已忽略"]
 const stats = [{"label": "待处置事件", "value": 0}, {"label": "超限时长合计", "value": 0}, {"label": "今日闭环数", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  reload,
+  runAction,
+  resetFilters,
+  exportRows,
+  openCreate,
+} = useListPage(ENDPOINT, {
+  createHint: '温度异常事件登记入口尚未接入审批流',
+  actionFailed: '温度异常动作未生效，请稍后重试',
+  actionFallback: '温度异常操作失败',
+  loadFailed: '温度异常事件列表读取失败',
+  loadFallback: '温度异常列表读取失败',
+})
+
 const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '温度异常事件登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('温度异常动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '温度异常操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('温度异常事件列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '温度异常列表读取失败'
-  }
-}
-
-onMounted(reload)
 </script>

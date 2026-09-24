@@ -63,11 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
-
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
+import { useListPage } from '@/api/listPage'
 
 const ENDPOINT = '/api/temperature'
 const columns = ["记录编号", "关联运单", "测点编号", "实时温度", "温度上限", "温度下限", "采集时间"]
@@ -75,56 +71,23 @@ const actions = ["确认记录", "标记超限", "重新采集"]
 const statuses = ["正常", "偏高", "偏低", "已离线"]
 const stats = [{"label": "今日采集测点", "value": 0}, {"label": "超限测点", "value": 0}, {"label": "离线测点", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  reload,
+  runAction,
+  resetFilters,
+  exportRows,
+  openCreate,
+} = useListPage(ENDPOINT, {
+  createHint: '温控记录登记入口尚未接入审批流',
+  actionFailed: '温控监控动作未生效，请稍后重试',
+  actionFallback: '温控监控操作失败',
+  loadFailed: '温控记录列表读取失败',
+  loadFallback: '温控监控列表读取失败',
+})
+
 const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '温控记录登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('温控监控动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '温控监控操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('温控记录列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '温控监控列表读取失败'
-  }
-}
-
-onMounted(reload)
 </script>

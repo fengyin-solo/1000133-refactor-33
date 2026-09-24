@@ -63,68 +63,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useModulePage } from '@/composables/useModulePage'
 
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
-
-const ENDPOINT = '/api/device'
 const columns = ["设备编号", "设备名称", "设备型号", "安装位置", "采集精度", "校准到期日", "责任人"]
 const actions = ["登记设备", "提交校准", "报废设备"]
 const statuses = ["在用", "待校准", "故障", "已报废"]
 const stats = [{"label": "在册设备", "value": 0}, {"label": "待校准设备", "value": 0}, {"label": "故障设备", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '温控设备登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('温控设备动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '温控设备操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('温控设备列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '温控设备列表读取失败'
-  }
-}
-
-onMounted(reload)
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  filterFields,
+  resetFilters,
+  exportRows,
+  openCreate,
+  runAction,
+  reload,
+} = useModulePage({
+  columns,
+  endpoint: '/api/device',
+  loadFailedMessage: '温控设备列表读取失败',
+  loadErrorMessage: '温控设备列表读取失败',
+  actionFailedMessage: '温控设备动作未生效，请稍后重试',
+  actionErrorMessage: '温控设备操作失败',
+  notReadyMessage: '温控设备登记入口尚未接入审批流',
+})
 </script>

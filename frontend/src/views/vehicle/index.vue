@@ -63,68 +63,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useModulePage } from '@/composables/useModulePage'
 
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
-
-const ENDPOINT = '/api/vehicle'
 const columns = ["车牌号码", "车辆类型", "制冷机组型号", "车厢容积", "温区数量", "所属车队", "年检到期日"]
 const actions = ["安排出车", "回场登记", "停用车辆"]
 const statuses = ["可用", "出车中", "维修中", "已停用"]
 const stats = [{"label": "可用车辆", "value": 0}, {"label": "出车中车辆", "value": 0}, {"label": "维修中车辆", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '冷藏车辆登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('冷藏车管理动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '冷藏车管理操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('冷藏车辆列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '冷藏车管理列表读取失败'
-  }
-}
-
-onMounted(reload)
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  filterFields,
+  resetFilters,
+  exportRows,
+  openCreate,
+  runAction,
+  reload,
+} = useModulePage({
+  columns,
+  endpoint: '/api/vehicle',
+  loadFailedMessage: '冷藏车辆列表读取失败',
+  loadErrorMessage: '冷藏车管理列表读取失败',
+  actionFailedMessage: '冷藏车管理动作未生效，请稍后重试',
+  actionErrorMessage: '冷藏车管理操作失败',
+  notReadyMessage: '冷藏车辆登记入口尚未接入审批流',
+})
 </script>

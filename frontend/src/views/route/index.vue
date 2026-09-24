@@ -63,68 +63,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useModulePage } from '@/composables/useModulePage'
 
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
-
-const ENDPOINT = '/api/route'
 const columns = ["线路编码", "线路名称", "起点冷库", "终点冷库", "途经站点", "预计时长", "线路里程"]
 const actions = ["启用线路", "调整站点", "停用线路"]
 const statuses = ["草稿", "已启用", "已停用"]
 const stats = [{"label": "启用线路", "value": 0}, {"label": "平均配送时长", "value": 0}, {"label": "停用线路", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '配送线路登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('线路管理动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '线路管理操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('配送线路列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '线路管理列表读取失败'
-  }
-}
-
-onMounted(reload)
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  filterFields,
+  resetFilters,
+  exportRows,
+  openCreate,
+  runAction,
+  reload,
+} = useModulePage({
+  columns,
+  endpoint: '/api/route',
+  loadFailedMessage: '配送线路列表读取失败',
+  loadErrorMessage: '线路管理列表读取失败',
+  actionFailedMessage: '线路管理动作未生效，请稍后重试',
+  actionErrorMessage: '线路管理操作失败',
+  notReadyMessage: '配送线路登记入口尚未接入审批流',
+})
 </script>

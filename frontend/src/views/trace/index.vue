@@ -63,68 +63,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useModulePage } from '@/composables/useModulePage'
 
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
-
-const ENDPOINT = '/api/trace'
 const columns = ["追溯码", "货物名称", "生产批次", "上游供应商", "入库单号", "全程温度区间", "追溯状态"]
 const actions = ["关联上游", "发布追溯", "撤回追溯"]
 const statuses = ["待关联", "已关联", "已发布", "已撤回"]
 const stats = [{"label": "追溯码总量", "value": 0}, {"label": "待关联追溯", "value": 0}, {"label": "已发布追溯", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '追溯记录登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('批次追溯动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '批次追溯操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('追溯记录列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '批次追溯列表读取失败'
-  }
-}
-
-onMounted(reload)
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  filterFields,
+  resetFilters,
+  exportRows,
+  openCreate,
+  runAction,
+  reload,
+} = useModulePage({
+  columns,
+  endpoint: '/api/trace',
+  loadFailedMessage: '追溯记录列表读取失败',
+  loadErrorMessage: '批次追溯列表读取失败',
+  actionFailedMessage: '批次追溯动作未生效，请稍后重试',
+  actionErrorMessage: '批次追溯操作失败',
+  notReadyMessage: '追溯记录登记入口尚未接入审批流',
+})
 </script>

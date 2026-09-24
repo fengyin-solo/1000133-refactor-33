@@ -63,68 +63,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { useModulePage } from '@/composables/useModulePage'
 
-import { request } from '@/api/client'
-
-type Row = Record<string, string | number | null>
-
-const ENDPOINT = '/api/billing'
 const columns = ["计费单号", "客户名称", "计费周期", "运输里程", "计费金额", "计费规则", "结算状态"]
 const actions = ["生成账单", "确认对账", "开具发票"]
 const statuses = ["待核算", "已核算", "已对账", "已开票"]
 const stats = [{"label": "待核算账单", "value": 0}, {"label": "本月应收金额", "value": 0}, {"label": "已开票金额", "value": 0}]
 
-const rows = ref<Row[]>([])
-const total = ref(0)
-const errorMessage = ref('')
-const filters = ref<Record<string, string>>({})
-const filterFields = columns.slice(0, 3)
-
-function resetFilters() {
-  filters.value = {}
-  void reload()
-}
-
-function exportRows() {
-  window.open(`${ENDPOINT}/export`, '_blank')
-}
-
-function openCreate() {
-  errorMessage.value = '计费单登记入口尚未接入审批流'
-}
-
-async function runAction(action: string, row: Row) {
-  errorMessage.value = ''
-  try {
-    const response = await request(`${ENDPOINT}/${row.id}/actions`, {
-      method: 'POST',
-      body: JSON.stringify({ action }),
-    })
-    if (!response.ok) {
-      throw new Error('计费结算动作未生效，请稍后重试')
-    }
-    await reload()
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '计费结算操作失败'
-  }
-}
-
-async function reload() {
-  errorMessage.value = ''
-  const query = new URLSearchParams(filters.value as Record<string, string>).toString()
-  try {
-    const response = await request(`${ENDPOINT}?${query}`)
-    if (!response.ok) {
-      throw new Error('计费单列表读取失败')
-    }
-    const payload = await response.json()
-    rows.value = payload.items ?? []
-    total.value = payload.total ?? rows.value.length
-  } catch (error) {
-    errorMessage.value = error instanceof Error ? error.message : '计费结算列表读取失败'
-  }
-}
-
-onMounted(reload)
+const {
+  rows,
+  total,
+  errorMessage,
+  filters,
+  filterFields,
+  resetFilters,
+  exportRows,
+  openCreate,
+  runAction,
+  reload,
+} = useModulePage({
+  columns,
+  endpoint: '/api/billing',
+  loadFailedMessage: '计费单列表读取失败',
+  loadErrorMessage: '计费结算列表读取失败',
+  actionFailedMessage: '计费结算动作未生效，请稍后重试',
+  actionErrorMessage: '计费结算操作失败',
+  notReadyMessage: '计费单登记入口尚未接入审批流',
+})
 </script>
